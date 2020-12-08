@@ -1,9 +1,8 @@
-# NeuroFppToolbox
-MATLAB toolbox to automatically detect, analyze and visualize spatiotemporal fractional propagating patterns in neural population activity, developed by Dr. Pulin Gong's group at University of Sydney. This toolbox includes the generation of a spiking neural network, and the analysis of the simulated data and the experimental data. 
-
+# NeuroFdpToolbox
+MATLAB toolbox to automatically detect and analyse fractional Lévy motions of propagating neural activity patterns, developed by Dr. Pulin Gong's group at University of Sydney. This toolbox includes the generation of a spiking neural network model, and the detailed processes for analysing our simulated and experimental data.
 If you use our code in your research, please cite us as follows:
 
-Liu Y., Long X., Gong P., Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex
+Liu Y., Long X., Martin PR, Solomon SG and Gong P., Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex. Under Review, 2020. 
 
 ## Network generation
 A spiking neural circuit simulation model edited by Yifan Gu, Yuxi Liu, James Henderson, Guozhang Chen. The instruction is detailed in the readme file in the sub-folder.
