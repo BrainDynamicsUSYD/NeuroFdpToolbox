@@ -10,7 +10,8 @@ A spiking neural circuit simulation model edited by Yifan Gu, Yuxi Liu, James He
 
 
 ## Simulation data analysis
-
+The matlab function for generating the neuron microcircuit is main_Gamma.m 
+The detection, analysis and visualization of the fractional propagating patterns in the simulation data can be found in the main function Project1.m in the sub-folder experimental_data_analysis/Toolbox_CSC. An example movie of the experimental data can be found in the sub-folder example movies. The full data can be shared upon requested. The code to generate the figure 2 and figure 3 in the paper "Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex" can be found in the sub-folder experimental_data_analysis/Toolbox_CSC/p1.
 
 ## Experimental data analysis
 The detection, analysis and visualization of the fractional propagating patterns in the experimental data can be found in the main function Project1.m in the sub-folder experimental_data_analysis/Toolbox_CSC. An example movie of the experimental data can be found in the sub-folder example movies. The full data can be shared upon requested. The code to generate the figure 2 and figure 3 in the paper "Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex" can be found in the sub-folder experimental_data_analysis/Toolbox_CSC/p1.
@@ -20,3 +21,4 @@ The detection, analysis and visualization of the fractional propagating patterns
 
 * **Yuxi Liu** - *Model generation and analysis* - [yliu2521](https://github.com/yliu2521)
 * **Xian Long** - *Experimental data analysis* - [Xian Long](https://github.com/longxian319)
+* **Pulin Gong** - *Coodinator* - pulin.gong@sydney.edu.au
