@@ -1,0 +1,152 @@
+function burstDetection_v5(sigIn, sigBinary, params, flagMovie, flagSaveData)
+% function for burst detection
+
+%% spatial-temporal burst detection based on continuity
+CC = bwconncomp(sigBinary) ;               % continued points in space-time
+B1 = regionprops(CC,'BoundingBox');        % bounding box of patterns
+boundary1 = cat(1, B1.BoundingBox);
+Area = regionprops(CC,'Area') ;            % for computing total scale of bursts
+
+%% initialization
+count = 1;                                 % for counting bursts
+Duration = [] ;
+patternScale = [] ;
+Centroids = [] ;
+WCentroids = [] ;
+instantScale = [] ;
+instantPeakAmp = [] ;
+instantTotalPower = [] ;
+rangeFrame = [] ;
+width = [] ;
+% Amp = [] ;
+% params.minBurstTime = 30 ;     % for 1 Gamma cycle (30Hz), 3 cycles (80)
+sigPlot = sigBinary.*sigIn ;     % for calculating weighted centres
+
+
+%% further pattern detection
+fullBinary = zeros(size(sigPlot)) ;               % store the final pattern index
+for iPatt = 1: size(CC.PixelIdxList,2)
+    currentIdx = CC.PixelIdxList{iPatt} ;        % extract index for patterns
+    DurationAll(iPatt) = boundary(iPatt,6) ; 
+
+    pattTimeStart = boundary(iPatt,3) ;
+    pattTimeEnd = boundary(iPatt,3) + boundary(iPatt,6) ;
+
+    
+    % temporal threshold
+    if DurationAll(iPatt) < params.minBurstTime
+        continue
+    end
+    % spatial threshold
+    if boundary1(iPatt,4)<3*resizeScale || boundary1(iPatt,5)<3*resizeScale
+        continue
+    end
+    % Amp = [Amp; sigPlot(currentIdx)];
+    
+    % burst properties
+    Duration(count) = burstTimeEnd-burstTimeStart+1 ;    % duration
+    patternScale(count) = Area(iPatt).Area ;  % for total scale
+    
+    burstIdxTemp = zeros(size(sigPlot)) ;
+    burstIdxTemp(currentIdx) = 1 ;
+    currentBurst = sigPlot.*burstIdxTemp ;
+    sumAmp(count) = sum(currentBurst(:)) ;     % sum of amplitude
+    peakAmp(count) = max(currentBurst(:)) ;    % peak amplitude
+    
+    % loop through each time frame to study instaneous properties within burst
+    timeCount = 1 ;
+    for iTime = burstTimeStart:burstTimeEnd
+        
+        % some statistics
+        instantBinary = burstIdxTemp(:,:,iTime) ;
+        
+        % find the max size burst
+        if timeCount == 1
+            sizeBurst = [] ;
+            CC_temp = bwconncomp(instantBinary) ;                % 2D
+            for i2Dburst = 1:CC_temp.NumObjects
+                sizeBurst(i2Dburst) = length(CC_temp.PixelIdxList{i2Dburst}) ;
+            end
+            [~,idxBurst] = max(sizeBurst) ;
+            instantBinary = zeros(size(instantBinary)) ;
+            instantBinary(CC_temp.PixelIdxList{idxBurst}) = 1 ;
+        else
+            distTemp = [] ;
+            centroid_temp = [] ;
+            CC_temp = bwconncomp(instantBinary) ;                % 2D
+            if length(CC_temp.PixelIdxList)>1
+                S_temp = regionprops(CC_temp,'centroid') ;
+                centroid_temp =  cat(1, S_temp.Centroid);
+                lastCen = WCentroids{count}(timeCount-1,:) ;
+                for iPatt = 1:length(CC_temp.PixelIdxList)
+                    distTemp(iPatt) = sum(bsxfun...
+                        (@minus,centroid_temp(iPatt,:),lastCen).^2) ;
+                end
+                [~,minIdx] = min(distTemp) ;
+                instantBinary = zeros(size(instantBinary)) ;
+                instantBinary(CC_temp.PixelIdxList{minIdx}) = 1 ;
+            end
+        end
+        fullBinary(:,:,iTime) = fullBinary(:,:,iTime) + instantBinary ;
+        instantPattern{count}(:,:,timeCount) = instantBinary.*sigPlot(:,:,iTime) ;
+        
+        instantScale{count}(timeCount,:) = sum(instantBinary(:)) ;  % instant scale
+        
+        tempPeak = max(max(currentBurst(:,:,iTime))) ;
+        instantPeakAmp{count}(timeCount,:) = tempPeak ;
+        
+        instantTotalPower{count}(timeCount,:) = sum(sum(currentBurst(:,:,iTime).^2) ) ;
+        
+        S = regionprops(instantBinary,instantPattern{count}(:,:,timeCount),{'Centroid','WeightedCentroid'} );
+        % calculate
+        B = regionprops(instantBinary,'BoundingBox');
+        
+        
+        boundary = cat(1, B.BoundingBox);
+        width{count}(timeCount,:) = (boundary(:,3)+boundary(:,4))/2 ;
+        
+        
+        Centroids{count}(timeCount,:) = cat(1, S.Centroid);
+        WCentroids{count}(timeCount,:) = cat(1, S.WeightedCentroid) ;
+        timeCount = timeCount + 1;
+    end
+    rangeFrame(count,:) = [burstTimeStart,burstTimeEnd] ;
+    %
+    if count>1
+        firstCentroidsLoc = squeeze(WCentroids{count}(1,:)) ;
+        % calculate the distance of centroids of two bursts
+        distCent(count) = sqrt(sum((firstCentroidsLoc - lastCentroidsLoc).^2)) ;
+        
+        firstCentroidsTime = burstTimeStart ;
+        % calculate the time interval between bursts
+        centInterval(count) = firstCentroidsTime - lastCentroidsTime ;
+    end
+    lastCentroidsLoc = squeeze(WCentroids{count}(end,:)) ;
+    lastCentroidsTime = burstTimeEnd ;
+    count = count+1 ;
+end
+%patternPlot = fullBinary.*sigPlot ;
+%
+% burstMaxWidth = max([burstXwidth,burstYwidth],[],2) ;
+% allVar = [burstDuration(1:end-1),burstArea(1:end-1),burstMaxWidth(1:end-1),...
+%     peak(1:end-1),spaceDist,timeDist] ;
+% [r,p] = corrcoef(allVar) ;
+% hist(areaBurst,20)
+% title(['Histogram of burst area, mean = ', meanArea(end)])
+% xlabel('Area (electrode^2)')
+
+% print(gcf,[pwd,'/Results/random_noise/',dataFileName,...
+%        'HistArea_surr'],'-dpng')
+
+% set(gca,'YDir','normal')
+t = datetime('now') ;
+dateStr = datestr(t,'mmmmdd_HH:MM') ;
+
+saveData = 1;
+if saveData
+    saveFileName = [num2str(surMethodNum),'0.2SmFullBurst2SD%',dataFileName,'_Band',...
+        num2str(subBand(1)),'Hz',dateStr,'.mat'] ;
+    save(saveFileName, 'Centroids','WCentroids', 'sumAmp','peakAmp','rangeFrame',...
+        'patternScale','instantScale','Duration','Duration2','distCent',...
+        'centInterval','instantPeakAmp','instantTotalPower','width') ;
+end

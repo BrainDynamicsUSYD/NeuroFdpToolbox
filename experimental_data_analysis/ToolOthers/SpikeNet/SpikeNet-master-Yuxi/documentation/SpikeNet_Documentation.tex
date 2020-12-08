@@ -1,0 +1,520 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage{tabulary}
+\usepackage{listings}
+\usepackage{nameref}
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref}  %use draft
+\usepackage{listings}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[misc]{ifsym}
+\usepackage[utf8]{inputenc}
+\usepackage[numbered, framed]{mcode}
+\usepackage[textwidth=365pt]{geometry}
+\usepackage{dirtree}
+\usepackage{tikz}
+\usetikzlibrary{external}
+\tikzexternalize % activate!
+\tikzset{external/force remake}
+\usetikzlibrary{shapes,arrows,calc}
+\usepackage{authblk}
+\usepackage{verbatim}
+
+\newcommand{\mylstinline}[1] {\colorbox{Lavender}{\lstinline[basicstyle=\ttfamily\footnotesize\color{Black}]|#1|} }
+ 
+ \renewcommand{\labelitemii}{$\circ$}
+
+  
+  
+\title{SpikeNet Documentation}
+\author[1]{Yifan Gu\thanks{yigu8115@gmail.com}}
+\author[1]{James Henderson}
+\author[1]{Yuxi Liu}
+\author[1]{Guozhang Chen}
+\affil[1]{School of Physics and ARC Centre of Excellence for Integrative Brain Function, University of Sydney, NSW 2006, Australia}
+
+%%\renewcommand\Authands{ and }
+
+\date{\today} 
+
+\begin{document}
+ \maketitle
+
+\section{Overview}
+SpikeNet is a software developed for simulating spiking neuronal networks, of which the design provides the following four main features.
+
+\begin{description}
+
+\item [Configurability] SpikeNet supports any user-defined structure of synaptic connectivity topologies, coupling strengths and conduction delays. It can be easily extended by developers to support any variations of integrate-and-fire neuron and synapse models. For the models that are currently available, see \nameref{sec:model}.
+
+\item [Performance]  Simulation of spiking neuronal network quickly becomes computationally intensive if the number of neurons $N$ in the network exceeds a few thousand. To achieve superior performance, various measures have been taken at both algorithmic and implementation level. Notably, at the algorithmic level, kinetic models are exclusively chosen for their algorithmic efficiency (e.g., \cite{destexhe1998kinetic, vogels2011inhibitory, hennig2015theoretical, treves1993mean}). Furthermore, for such kinetic models, computational cost of the simulation can be dramatically reduced  with the commonly used mathematical abstraction that synapses can be simplified into a few groups, within which their dynamics (or more specifically, the time constants) are identical \cite{destexhe1994efficient}. At the implementation level, C\texttt{++}, a programming language renowned for its high-performance computing, is used.
+
+\item [User-friendly interface] In SpikeNet, although, C\texttt{++}  is used for heavy-duty computation, its user-interface is written in a high-level programming language (Matlab) for user-friendliness. This means SpikeNet does not require non-developer users to be familiar with C\texttt{++}. In practise, the typical work-flow of SpikeNet user is as following.
+\begin{enumerate}
+\item In Matlab, use SpikeNet functions to generate the input files that define the simulation case.
+\item Evoke the SpikeNet C\texttt{++} simulator, which reads the input files, runs the simulation and generates the output files.
+\item In Matlab, use SpikeNet functions to parse the output files into Matlab data for post-processing.
+\end{enumerate}
+Please see \nameref{sec:matlab user interface} for more detailed descriptions of the work-flow. 
+This design essentially makes the SpikeNet C\texttt{++} simulator a stand-alone software. 
+Based on these protocols, the C\texttt{++} simulator can easily interface with any other high-level programming languages if Matlab is not prefered.
+Developer users will be interested to know that SpikeNet supports HDF5-based input/output file format which follows pre-defined protocols (see \nameref{sec:IO protocols}). 
+
+\item [Scalability] The design of the SpikeNet C\texttt{++} simulator readily supports parallel computing used Message Passing Interface (MPI). The simulator has two central C\texttt{++} classes, representing populations of neurons and synaptic connectivities among these populations, respectively. For example, for a recurrent network consisting of an excitatory neuron population ($E$) and an inhibitory one ($I$), two neuron population objects will be created together with up to four synaptic connectivity objects including $E\leftarrow E$, $I\leftarrow E$, $E\leftarrow I$ and $I\leftarrow I$. These six objects can be created and simulated in parallel and the amount of message passing among them at each simulation time step is minimal.  Additionally, HDF5 is supported for handling large input/output data files.
+\end{description}
+ 
+
+Here are some basic tips on git.
+\begin{itemize}
+\item To get the most recent version of SpikeNet: \mylstinline{git pull origin master}
+\item Build the new simulator: \mylstinline{make; make clean}
+\item Avoid directly modifying any existing files in SpikeNet unless you are a developer. Create another directory alongside SpikeNet and put all of your files there. In summary, your project folder should look like:
+\end{itemize}
+\hfill\begin{minipage}{\dimexpr\textwidth-1cm}
+\dirtree{%
+.1 tmp.
+.2 SpikeNet.
+.3 cpp\_sourses.
+.3 matlab\_interfaces.
+.3 makefile.
+.3 other\_scripts.
+.2 simulator.
+.2 tmp\_data.
+.2 my\_functions.
+.2 PBS\_out.
+.2 all\_in\_one.sh.
+}
+\xdef\tpd{\the\prevdepth}
+\end{minipage}
+
+\section{Workflow}
+The typical workflow of SpikeNet is as shown in the following flowchart.
+\vskip 0.5cm
+
+% Define block styles
+\tikzsetnextfilename{work_flow}
+\tikzstyle{func} = [rectangle, draw, 
+     text centered, minimum height=1.5em,  text width=2.5cm]
+\tikzstyle{data} = [rectangle,
+     text centered, minimum height=2em]
+\tikzstyle{line} = [draw, -latex']
+\begin{tikzpicture}[node distance = 1.2cm, auto]
+    % Place nodes
+    \node (pre) [func, label=above right:{\tiny matlab}] {\footnotesize Pre-processing};
+    \node (in_h5) [data, below of=pre] {\footnotesize A-T1\_in.h5};
+    \node (other) [data, left of=in_h5, node distance=5cm, align=left]  {\footnotesize other.mat};
+    \node (c++) [func, below of=in_h5, label=above right:{\tiny C\texttt{++}} ] {\footnotesize simulator};
+    \node (ygout) [data, below of=c++] {\footnotesize A-T1\_T2\_out.h5};
+    \node (restart) [data, right of=ygout,  node distance=3cm] {\footnotesize A-T1\_restart\_TreeID.h5};
+    \node (ygout_samp)  [data, left of=ygout, node distance=3cm] {\footnotesize A-T1\_T2\_ID\_samp.h5};
+    \node (ReadYG) [func, below of=ygout, label=above right:{\tiny matlab}] {\footnotesize PostProcessYG()};
+    \node (RYG) [data, below of=ReadYG] {\footnotesize A-T1\_T2\_RYG.mat};
+    \node (SAMP) [data, left of=RYG, node distance=3cm] {\footnotesize A-T1\_T2\_ID\_samp.mat};
+    \node (post) [func, below of=RYG, label=above right:{\tiny matlab}] {\footnotesize More analysis};
+    \node (read_syn) [func, right of=RYG,  node distance=5cm, label=above right:{\tiny matlab}]  {\footnotesize read\_syn\_h5()};
+    % Draw edges
+    \coordinate (Below pre) at ($(pre.south)+(0,-0.2cm)$);
+    \coordinate (Above c++) at ($(c++.north) + (0,0.15cm)$);
+    \coordinate (Below c++) at ($(c++.south)+(0,-0.2cm)$);
+    \coordinate (Above ReadYG) at ($(ReadYG.north) + (0,0.15cm)$);
+    \coordinate (Below ReadYG) at ($(ReadYG.south)+(0,-0.15cm)$);
+    \coordinate (Above post) at ($(post.north) + (0,0.3cm)$);
+    \coordinate (Above read_syn) at ($(read_syn.north) + (0,0.3cm)$);
+    
+    \path [line] (other) |- (post);
+    \path [line] (Below pre) -| (in_h5);
+    \path [line] (pre) -- (in_h5);
+    \path [line] (Below pre) -| (other);
+    \path [line, dashed] (in_h5) -- (c++);
+    \path [line] (in_h5) -- (c++);
+    \path [line] (c++) -- (ygout);
+    \path [line] (Below c++) -| (ygout_samp);
+    \path [line] (Below c++) -| (restart);
+    \path [line, dashed] (ygout_samp) -- (ReadYG);
+    \path [line] (ygout) -- (ReadYG);
+    \path [line] (ReadYG) -- (SAMP);
+    \path [line] (ReadYG) -- (RYG);
+    \path [line] (SAMP) |- (Above post);
+    \path [line] (RYG) -- (post);
+    \path [line] (in_h5) -| (read_syn);
+    \path [line] (read_syn) |- (post);
+    \path [line] (SAMP) -- node [rotate=90,  text centered, anchor=south]  {\scriptsize delete} (ygout_samp);
+    \path [line, dashed] (Above read_syn) |- (ReadYG);
+\end{tikzpicture}
+\vskip 1cm
+
+Notes: 
+\begin{itemize}
+\item Although the C\texttt{++} simulator accepts input files with any names, A-T1 is the recommended and default naming format.
+A is a 4-digit PBS array ID number.
+T1 is a timestamp identifying when the in.h5 file was generated.
+\item Similarly, T2 is a timestamp identifying when the out.h5 file was generated.
+Note that T2 allows multiple simulations to be run for the same in.h5 file.
+\item The restart\_TreeID.h5 files allow the users to directly modify any aspect of a simulation and restart it from there. 
+The TreeID is automatically generated to ensure that the users can make as many different modifications and restart the simulation as many times as desired.
+\item For technical reasons, the time series data sampled from each neuron population or synapse group, identified by an ID number, during simulation are stored separately in samp.h5 files.
+\item The dashed lines mean that the C\texttt{++} simulator and the PostProcessYG() matlab function will automatically look for those auxiliary input files based on the information contained in the main input files.
+\end{itemize}
+
+\section{Documentation for the C\texttt{++} simulator}
+To view the documentation
+\begin{itemize}
+\item Make sure doxygen and graphviz are installed
+\item Go to the SpikeNet directory
+\item Generate the documentation: \mylstinline{doxygen}
+\item Open the documentation: \mylstinline{open docu*/html/index.html}
+\end{itemize}
+
+
+
+\section{Neuron and synapse models}
+\label{sec:model}
+
+\subsection{Default model}
+\numberwithin{equation}{section}
+A description of the neuron and synapse models can also be found in a publication that used SpikeNet \cite{Gu2016}.
+The default neuron model in SpikeNet is leaky integrate-and-fire neuron. 
+The membrane potential $V^{\alpha}_{i}$ of the $i$-th neuron ($i=1,\cdots,N_{\alpha}$) from population $\alpha$ evolves according to
+
+\begin{equation}
+C_{m}\frac{dV^{\alpha}_{i}}{dt} = -g_{L}(V^{\alpha}_{i}-V_{L}) + I^{\alpha}_{i,syn}(t) + I^{\alpha}_{i,app}(t), \text{ if } V^{\alpha}_{i} < V_{th}.
+\end{equation}
+When neurons reach the threshold $V_{th}$, a spike is emitted and they are reset to $V_{rt}$ for an absolute refractory period $\tau_{ref}$. 
+The spike times $t^{\alpha}_{i}$ are recorded.
+
+The default synapse model in SpikeNet is conductance-based. 
+The synaptic currents received by a neuron are given by
+
+\begin{align}
+I^{\alpha}_{i,syn}(t) &= \sum_{\beta=1}^{P}I^{\alpha\beta}_{i}(t) \\
+ &= \sum_{\beta=1}^{P}[-g_{i}^{\alpha\beta}(V^{\alpha}_{i}-V_{rev}^{\beta})] \\
+ &= \sum_{\beta=1}^{P}\{-[\sum_{j=1}^{N_{\beta}}a_{ij}^{\alpha\beta}g_{ij}^{\alpha\beta}s_{ij}^{\alpha\beta}(t)](V^{\alpha}_{i}-V_{rev}^{\beta})\}\label{eq:I_syn}
+\end{align}
+
+
+\noindent
+where $V_{rev}^{\beta}$ is the reversal potential of the corresponding current $I^{\alpha\beta}_{i}$ induced by pre-synaptic population $\beta$. 
+$a_{ij}^{\alpha\beta}$ is a binary variable which determines the existence of synapse from the $j$-th neuron in population $\beta$ to the $i$-th neuron in  population $\alpha$, while $g_{ij}^{\alpha\beta}$ reflects the (maximal) strength of the synaptic conductance. 
+The gating variable $s_{ij}^{\alpha\beta}(t)$ models the instananeous value of synaptic conductance in terms of the fraction of open channels, described by
+
+\begin{equation}
+\frac{ds_{ij}^{\alpha\beta}}{dt} = -\frac{s_{ij}^{\alpha\beta}}{\tau_{d}^{\beta}}+\sum_{t^{\beta}_{j}}h^{\beta}(t-t^{\beta}_{j}-d^{\alpha\beta}_{ij})(1-s_{ij}^{\alpha\beta})
+\label{eq:gating}
+\end{equation}
+
+\noindent
+where $h$ models the concentration time-course of the channel-opening neurotransmitters, arrived with a conduction delay $d^{\alpha\beta}_{ij}$ after the pre-synaptic spike time $t^{\beta}_{j}$. 
+The $(1-s_{ij}^{\alpha\beta})$ term introduces saturation effect. 
+Following the simplification in \cite{destexhe1994efficient}, a rectangular pulse with unitary area is used for $h$
+
+\begin{equation}
+h(t) = 
+\begin{cases}
+1/\tau_{r},& \text{ if } 0\leq t \leq \tau_{r}\\
+0,& \text{ otherwise}
+\end{cases}
+\end{equation}
+
+
+% The default parameters are summarized in Table \ref{table:model constants}. 
+All numerical values are in consistent units unless mentioned otherwise (ms for time, mV for voltage, nA for current, nF for capacitance and ${\mu}$S for conductance). 
+Default numerical integration is performed using Euler method and the suggested time-step is 0.1 ms\cite{litwin2012slow}.
+
+\subsection{Currently available models}
+\begin{enumerate}
+\item Exponential leaky integrate-and-fire neuron model
+\item Double-exponential synapse model: see \cite{keane2015propagating}
+\item Inhibitory plasticity: see \cite{vogels2011inhibitory}
+\item Spike frequency adaptation: see \cite{madison1984control}
+
+\end{enumerate}
+
+%\begin{table}
+%\begin{center}
+%  \begin{tabulary}{3.0\textwidth}{RRR}
+%	$\alpha$  & E & I \\
+%	\hline
+%	$\tau_{r}^{\alpha}$ (ms) & 1 & 1\\
+%	$\tau_{d}^{\alpha}$ (ms) & 5 & 3 \\
+%	$V_{rev}^{\alpha}$ (mV) & 0 & -80 \\
+%	
+%	$\tau_{ref}$ (ms) & \multicolumn{2}{c}{2} \\
+%	$C_{m}$ (nF) & \multicolumn{2}{c}{0.25} \\
+%	$g_{L}$ ($\mu$S) & \multicolumn{2}{c}{0.0167} \\
+%	$V_{L}$ (mV) & \multicolumn{2}{c}{-70} \\
+%	$V_{rt}$ (mV) & \multicolumn{2}{c}{-60} \\
+%	$\theta$ (mV) & \multicolumn{2}{c}{-50} \\
+%  \end{tabulary}  
+%  \caption{Model constants}
+%  \label{table:model constants}
+%\end{center}
+%\end{table}
+
+
+
+
+
+\section{Matlab user interface}
+\label{sec:matlab user interface}
+See main\_demo.m for a list of the basic case-building matlab functions and their usages. Each such function implements one particular input protocol. 
+\lstinputlisting{../main_demo.m}
+
+(More need to be added on the available post-processing Matlab functions. SpikeNet has a variety of statistical analysis and visualization tools for spiking networks.)
+
+++Add  descriptions of CollectVectorYG and CollectCellYG.
+
+\section{Input/Output protocols}
+\label{sec:IO protocols}
+
+\begin{comment}
+\subsection{Text-based input protocols}
+The default filename for text-based input file is ``filename.in.h5''.
+It is advised that synapse definitions always be given in a separate file.
+The default synapse definition filename is ``filename.in.h5\_syn''.
+Non-default synapse definition file path and name can be specified by ``SYNF001'' protocol.
+Following is the complete list of the input data protocols.
+Note that the protocols use three special characters, including ``\textgreater'' for starting a new protocol, ``\#'' for commenting and "," for delimiting.
+
+\lstset{
+  basicstyle=\fontsize{9}{11}\selectfont\ttfamily
+}
+
+\begin{lstlisting}[mathescape]
+
+> INIT001 # number of neurons in each population
+	N1, N2, $\dots$,
+
+> INIT002 # time step length and total number of steps
+	dt (ms), step_tot,
+
+> INIT003 # random initial distributions $\text{for}$ V (deprecated)
+	p_fire_pop1 (range ($-\infty$,1]), $\dots$, p_fire_popN, 
+
+> INIT004 # external Gaussian currents
+	pop_ind, 
+	mean_1 (nA), mean_2, $\dots$,  mean_N, ($\text{for}$ each neuron)
+	std_1 (nA), std_2, $\dots$,  std_N, 
+
+> INIT005 # external Poissonian spikes
+	pop_ind, type_ext, K_ext ($\mu$S), Num_ext,
+	1, 1, 0, 0, $\dots$, (1-by-N_pop logical values)
+	rate_1 (Hz), rate_2, $\dots$, rate_step_tot
+
+> INIT006 # chemical connection definition
+	type, pop_ind_pre, pop_ind_post,
+	I (row vector),
+	J (row vector),
+	K (row vector),
+	D (row vector),
+
+> INIT007 # set perturbation (remove one spike)
+	pop_ind, step_perturb,
+
+> INIT008 # add short-term depression
+	pop_ind_pre, pop_ind_post, STD_on_step,
+
+> INIT009 # add inhibitory STDP
+	pop_ind_pre, pop_ind_post, STDP_on_step,
+	
+> INIT010 # add spike-frequency adaptation 
+	pop_ind,
+
+> INIT011 # random initial conditions $\text{for}$ V and firing prob
+	r_V0_pop1 (range (0,1]), $\dots$,r_V0_popN, 
+	p_fire_pop1 (range (0,1]), $\dots$, p_fire_popN, 
+
+> INIT012 # external Gaussian conductance
+	pop_ind, 
+	mean_1 (${\mu}$S), mean_2, $\dots$,  mean_N, ($\text{for}$ each neuron)
+	std_1 (${\mu}$S), std_2, $\dots$,  std_N, 
+
+> INIT013 # synapse model choice
+	synapse_model_number,
+
+> SYNF001 # non-default synapse definition file name
+	path/to/file_name (no comma!)
+
+> KILL001 # runaway killer setting
+	pop_ind, min_ms, runaway_Hz, Hz_ms,
+
+> PARA001 # non-default neuron population parameter
+	pop_ind, number_of_parameters,
+	parameter_name1, value1,
+	parameter_name2, value2,
+	$\dots$
+ 
+> PARA002 # non-default synapse parameter
+	number_of_parameters,
+	parameter_name1, value1,
+	parameter_name2, value2,
+	$\dots$
+
+> SAMP001 # neuron data sampling 
+	pop_ind,
+	data_type (logical vector),
+	ind1, ind2, $\dots$, indX, (sample neuron indices)
+	1, 1, 0, 0, $\dots$, (1-by-step_tot logical values)
+	# Note that data_type specifies sample data types
+	# and it must correspond to 
+	# [V,I_leak,I_AMPA,I_GABA,I_NMDA,I_GJ,I_ext]
+
+> SAMP002 # synapse data sampling 
+	pop_ind_pre, pop_ind_post, syn_type,
+	ind1, $\dots$, indX, (post-synaptic sample neuron indices)
+	1, 1, 0, 0, $\dots$, (1-by-step_tot logical values)
+	
+> SAMP003 # neuron population statistical data record
+	pop_ind,
+	
+> SAMP004 # synaptic currents  statistical data record
+	pop_ind_pre, pop_ind_post, syn_type,
+
+> SAMP005 # local field potential data record
+	pop_ind, No_of_measures
+	1, 0, 0, 1, $\dots$, 
+	$\dots$
+	0, 0, 1, 1, $\dots$, (No_of_measures-by-N logical values)
+	
+\end{lstlisting}
+
+\end{comment}
+
+
+\hfill\begin{minipage}{\dimexpr\textwidth-1cm}
+\dirtree{%
+.1 /.
+.2 config.
+.3 Net.
+.4 INIT001.
+.5 N.
+.4 INIT002.
+.5 dt, step\_tot.
+.4 SEED001.
+.5 seed.
+.3 pops.
+.4 pop0.
+.5 PARA001.
+.6 para\_str\_ascii.
+.5 INIT004.
+.6 mean, std.
+.5 INIT011.
+.6 r\_V0, p\_fire.
+.5 SAMP103.
+.6 time\_start, time\_end.
+.5 \dots.
+.4 pop1.
+.5 \dots.
+.4 \dots.
+.3 syns.
+.4 n\_syns.
+.4 syn0.
+.5 INIT006.
+.6 type, i\_pre, j\_post, I, J, K, D.
+.5 INIT005.
+.6 pop\_ind, type\_ext, K\_ext, Num\_ext, neurons, rate\_ext\_t.
+.5 SEED002.
+.6 seed.
+.5 SAMP104.
+.6 time\_start, time\_end.
+.5 \dots.
+.4 syn1.
+.5 \dots.
+.4 \dots.
+}
+\xdef\tpd{\the\prevdepth}
+\end{minipage}
+
+
+\subsection{Notes on RNG control}
+To fully control the RNG in C++ simulator, you need to pass the seed via this two functions.
+\begin{enumerate}
+\item writeExtSpikeSettingsHDF5(..., Seed)
+\item writePopSeedHDF5(PopID, Seed)
+\end{enumerate}
+
+
+
+\begin{comment}
+\subsection{Text-based output protocols}
+The default filename of text-based output file is ``filename-X.ygout'', where X is a time-stamp that uniquely marks the output file so that multiple simulations can be run for the same input files.
+For data completeness, the corresponding input file will be attached to the output file.
+Following is the complete list of the output data protocols.
+\begin{lstlisting}[mathescape]
+
+> KILL002 # step at which runaway activity is killed
+	step_killed,
+
+> POPD001 # spike history of neuron population
+	pop_ind,
+	spike_neuron_ind (row vector),
+	num_spikes_t (1-by-step_tot row vector),
+	num_ref_t (1-by-step_tot row vector),
+
+> POPD002 # neuron parameters in the population
+	pop_ind, number_of_parameters,
+	parameter_name1, value1,
+	parameter_name2, value2,
+	$\dots$
+
+> POPD003 # neuron population statistical data
+	pop_ind,
+	V_mean_t1, V_mean_t2, $\dots$ (1-by-step_tot)
+	V_std_t1, V_std_t2, $\dots$ (1-by-step_tot)
+	I_input_mean_t1, I_input_mean_t2, $\dots$ (1-by-step_tot)
+	I_input_std_t1, I_input_std_t2, $\dots$ (1-by-step_tot)
+	
+> POPD004 # sampled neuron data (deprecated)
+	pop_ind, number_of_sample_neurons,
+	data_name1, $\dots$, data_nameX,
+	data_1 (sampled_neurons-by-sampled_steps matrix),
+	data_2 (sampled_neurons-by-sampled_steps matrix),
+	$\dots$
+	data_X (sampled_neurons-by-sampled_steps matrix),
+
+
+> POPD005 # E-I ratio $\text{for}$ each neuron
+	pop_ind,
+	EI_ratio_1, EI_ratio_2, $\dots$ (1-by-N),
+	
+> SAMF001 # sampled data file name
+	path/to/file_name (no comma!)
+
+> POPD006 # sampled neuron data
+	pop_ind, number_of_neurons, number_of_steps
+	data_name1, $\dots$, data_nameX,
+	step_1 (sampled_neurons-by-data_types matrix),
+	step_2 (sampled_neurons-by-data_types matrix),
+	$\dots$
+	step_X (sampled_neurons-by-data_types matrix),
+	
+> POPD007 # local field potential data
+	pop_ind,  No_of_measures, 
+	LFP_1, LFP_2, $\dots$, LFP_step_tot, (measure 1)
+	$\dots$ 
+	
+> SYND001 # synaptic connection parameters
+	number_of_parameters,
+	parameter_name1, value1,
+	parameter_name2, value2,
+	$\dots$
+
+> SYND002 # sampled synapse  data
+	pop_ind_pre, pop_ind_post, syn_type, no_of_sample_neurons,
+	data (sampled_neurons-by-sampled_steps matrix),
+
+> SYND003 # synapse statistical data
+	pop_ind_pre, pop_ind_post, syn_type,
+	I_mean_t1, I_mean_t2, $\dots$ (1-by-step_tot)
+	I_std_t1, I_std_t2, $\dots$ (1-by-step_tot)
+	
+\end{lstlisting}
+
+\end{comment}
+
+\bibliography{SpikeNet_Documentation}{}
+\bibliographystyle{plain}
+
+
+
+\end{document}
+
