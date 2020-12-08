@@ -15,7 +15,11 @@ The detection, analysis and visualization of the fractional propagating patterns
 The code to generate the figure 4-6 in the paper "Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex" can be found in the sub-folder experimental_data_analysis/New/GammaPaperFig1-4.
 
 ## Experimental data analysis
-The detection, analysis and visualization of the fractional propagating patterns in the experimental data can be found in the main function Project1.m in the sub-folder experimental_data_analysis/Toolbox_CSC. An example movie of the experimental data can be found in the sub-folder example movies. The full data can be shared upon requested. The code to generate the figure 2 and figure 3 in the paper "Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex" can be found in the sub-folder experimental_data_analysis/Toolbox_CSC/p1.
+The detection, analysis and visualization of the fractional propagating patterns in the experimental data can be found in the main function Project1.m in the sub-folder experimental_data_analysis/Toolbox_CSC. An example movie of the experimental data can be found:
+
+![Example superdiffusive gamma burst pattern movie](https://github.com/longxian319/PhD_XL/blob/master/GammaDynaPatt/example%20movies/GammaBurstPatterns.avi)
+
+The full data can be shared upon requested. The code to generate the figure 2 and figure 3 in the paper "Lévy walk dynamics explain gamma burst patterns in primate cerebral cortex" can be found in the sub-folder experimental_data_analysis/Toolbox_CSC/p1.
 
 
 ## Authors
