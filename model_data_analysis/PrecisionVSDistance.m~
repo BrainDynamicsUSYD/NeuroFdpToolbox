@@ -1,0 +1,23 @@
+% function PrecisionVSDistance
+STDy = zeros(1,10);
+dis = zeros(1,10);
+for i = 1:10
+    pd = fitdist([Ceny{i,:}]','Normal');
+    STDy(i) = 1/pd.sigma^2;
+    Coor = [-16 15.5;-16 15.5];
+    Coor(:,2) = Coor(:,2)-3*i+2;
+    dis(i) = Distance_xy()
+end
+IE = 1:7;
+s = std(STDymat,0,2);
+errorbar(1:7,STDy,s,'o')
+NP = STDy; % heiy; % (heix + heiy)/2;
+% NP = NP/NP(1);
+v2 = polyfit(log10(IE),log10(NP),1);
+x2 = IE;
+y2 = 10^v2(2)*x2.^v2(1);
+hold on
+plot(x2,y2,'LineWidth',1.5)
+xlabel('WM items','fontSize',10)
+ylabel('Precision','fontSize',10)
+% end

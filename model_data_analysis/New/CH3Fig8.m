@@ -1,0 +1,97 @@
+figure_width = 13; % cm
+figure_hight = 11.4; % cm
+figure('NumberTitle','off','name', 'CH3Fig8', 'units', 'centimeters', ...
+    'color','w', 'position', [0, 0, figure_width, figure_hight], ...
+    'PaperSize', [figure_width, figure_hight]); % this is the trick!
+
+% R = load('0007-201901141714-05837_in_1547446578141_out_RYG.mat');
+% R = get_SWR(R);
+subplot(2,1,1)
+raster_plot(R,1,1,[])
+ylim([1 250])
+xlabel('Time(s)','fontsize',10)
+text(-0.1,1,'A','Units', 'Normalized','FontSize',12)
+
+subplot(4,1,3)
+% R = get_grid_firing_centre(R);
+hw = 31;
+fw = 2*hw+1;
+t_mid = R.grid.t_mid;
+ind_a_vec = R.grid.ind_ab(1,:);
+ind_b_vec = R.grid.ind_ab(2,:);
+mode = 'quick';
+switch mode
+    case 'bayesian'
+        x_centre = R.grid.bayes.centre(1,:);
+        y_centre = R.grid.bayes.centre(2,:);
+        width = R.grid.bayes.radius;
+    case 'quick'
+        x_centre = R.grid.quick.centre(1,:);
+        y_centre = R.grid.quick.centre(2,:);
+        width = R.grid.quick.radius;
+end
+
+[Lattice, ~] = lattice_nD(2, hw);
+i = 0;
+coe = 2;
+M = 20;
+for t = 3.63e3:3.83e3 % 1170:1320 % 1:length(t_mid)
+    axis equal;
+    box on;
+    set(gca,'xtick',[],'ytick',[]);
+    xlim([-hw hw]);
+    ylim([-21 -11]);
+    hold on;
+    h2 = plot(100,0);
+    ind_range_tmp = ind_a_vec(t):ind_b_vec(t);
+    if ~isnan(x_centre(t))
+        x_tmp = x_centre(t);
+        y_tmp = y_centre(t);
+        % adding modification algorithm as criteria for proper spike pattern
+        [spikingn,~] = find(R.spike_hist{1}(:,(t_mid(t)-25):(t_mid(t)+24)));
+        spikingn = unique(spikingn);
+        all = find(lattice_nD_find_dist(Lattice,hw,x_tmp,y_tmp) <= width(t));
+        incircle = sum(ismember(spikingn,all));
+        if (incircle/(pi*width(t)^2) >= coe*length(spikingn)/((2*hw)^2)) && (incircle >= M)
+            if i == 0
+                x0 = x_tmp;
+                y0 = y_tmp;
+            end
+            i = i + 1;
+            h2 = plot( x_tmp, y_tmp, 'r.', 'MarkerSize', 8);
+            hold on
+            plot([x0,x_tmp],[y0,y_tmp],'r')
+            x0 = x_tmp;
+            y0 = y_tmp;
+        end
+    end
+%     ts = sprintf('time = %8.1f ms',t);
+%     title(ts);
+%     drawnow
+end
+xlabel('x','fontsize',10)
+ylabel('y','fontsize',10)
+text(-0.1,1,'B','Units', 'Normalized','FontSize',12)
+
+subplot(4,1,4)
+LFPCenter = cell2mat(WCentroids');
+LFPCenter = LFPCenter(699:827,:);
+for i = 2:length(LFPCenter)
+plot(LFPCenter(i,2),LFPCenter(i,3),'b.', 'MarkerSize', 8)
+hold on
+plot(LFPCenter(i-1:i,2),LFPCenter(i-1:i,3),'b')
+hold on
+% pause(0.1)
+xlim([0 63])
+ylim([11 21])
+end
+set(gca,'xtick',[])
+set(gca,'xticklabel',[])
+set(gca,'ytick',[])
+set(gca,'yticklabel',[])
+xlabel('x','fontsize',10)
+ylabel('y','fontsize',10)
+text(-0.1,1,'C','Units', 'Normalized','FontSize',12)
+
+set(gcf, 'PaperPositionMode', 'auto'); % this is the trick!
+print -depsc CH3Fig8 % this is the trick!!

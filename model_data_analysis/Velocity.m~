@@ -1,0 +1,5 @@
+function v = Velocity(R)
+% calculate modified spike pattern move velocity
+d = R.grid.quick.jump_dist;
+v = d/
+end

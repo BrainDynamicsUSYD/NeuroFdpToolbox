@@ -1,0 +1,22 @@
+figure_width = 13; % cm
+figure_hight = 11.4; % cm
+figure('NumberTitle','off','name', 'CH3Fig9', 'units', 'centimeters', ...
+    'color','w', 'position', [0, 0, figure_width, figure_hight], ...
+    'PaperSize', [figure_width, figure_hight]); % this is the trick!
+
+R = load('0010-202001041836-25085_in_1578123572871_out_RYG2.mat');
+R = R.RL;
+load('3DBurstLFP0010minTime0SR1000P95.mat', 'distCent')
+load('3DBurstLFP0010minTime0SR1000P95.mat', 'WCentroids')
+
+subplot(2,2,1)
+histogram(R.grid.quick.jump_dist,'probability')
+xlabel('Jump Size(grid unit)','fontsize',10)
+ylabel('Probability','fontsize',10)
+text(-0.1,1,'A','Units', 'Normalized','FontSize',12)
+
+for i = 1:length(WCentroids)
+subplot(2,2,2)
+
+set(gcf, 'PaperPositionMode', 'auto'); % this is the trick!
+print -depsc CH3Fig9 % this is the trick!!
